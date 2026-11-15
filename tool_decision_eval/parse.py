@@ -39,13 +39,13 @@ def _pythonic(text):
         except SyntaxError:
             continue
         for node in tree.elts if isinstance(tree, (ast.List, ast.Tuple)) else [tree]:
-            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)) or node.args:
+            if not (isinstance(node, ast.Call) and isinstance(node.func, (ast.Name, ast.Attribute))) or node.args:
                 continue
             try:
                 args = {k.arg: ast.literal_eval(k.value) for k in node.keywords}
             except (ValueError, SyntaxError):
                 continue
-            calls.append({"name": node.func.id, "arguments": args})
+            calls.append({"name": ast.unparse(node.func), "arguments": args})  # BFCL names have dots
     return calls
 
 

@@ -1,0 +1,34 @@
+{"id": "web_search-needs", "question": "What's the weather forecast for Manila tomorrow?", "expect": "web_search", "args": {"query": null}}
+{"id": "web_search-near-miss", "question": "What is the capital of Peru?", "expect": "none", "pair": "web_search"}
+{"id": "fetch_url-needs", "question": "Summarise this page for me: https://www.python.org/downloads/release/python-3130/", "expect": "fetch_url", "args": {"url": "python.org"}}
+{"id": "fetch_url-near-miss", "question": "What does the https at the start of https://www.python.org mean?", "expect": "none", "pair": "fetch_url"}
+{"id": "show_pictures-needs", "question": "Show me some pictures of snow leopards.", "expect": "show_pictures", "args": {"query": "snow leopard"}}
+{"id": "show_pictures-near-miss", "question": "What colour is a snow leopard's fur?", "expect": "none", "pair": "show_pictures"}
+{"id": "run_script-needs", "question": "What is 48731 multiplied by 9277?", "expect": "run_script"}
+{"id": "run_script-near-miss", "question": "Who invented calculus?", "expect": "none", "pair": "run_script"}
+{"id": "find_files-needs", "question": "Find all the Markdown files in my shared folder.", "expect": "find_files", "args": {"pattern": "md"}}
+{"id": "find_files-near-miss", "question": "What file extension do Markdown files use?", "expect": "none", "pair": "find_files"}
+{"id": "read_file-needs", "question": "Read notes/todo.md and tell me what's on it.", "expect": "read_file", "args": {"path": "notes/todo.md"}}
+{"id": "read_file-near-miss", "question": "How do I write a to-do list in Markdown?", "expect": "none", "pair": "read_file"}
+{"id": "write_file-needs", "question": "Save a file notes/groceries.md with this list: eggs, milk, bread.", "expect": "write_file", "args": {"path": "groceries.md", "content": "eggs"}}
+{"id": "write_file-near-miss", "question": "Write me a short grocery list for a pancake breakfast.", "expect": "none", "pair": "write_file"}
+{"id": "delete_file-needs", "question": "Delete scratch/attempt1.js from my folder, I don't need it any more.", "expect": "delete_file", "args": {"path": "attempt1.js"}}
+{"id": "delete_file-near-miss", "question": "How do I delete a file from Node.js?", "expect": "none", "pair": "delete_file"}
+{"id": "show_website-needs", "question": "Show me site/index.html rendered.", "expect": "show_website", "args": {"path": "site/index.html"}}
+{"id": "show_website-near-miss", "question": "What tag does an HTML document start with?", "expect": "none", "pair": "show_website"}
+{"id": "show_document-needs", "question": "Show notes/report.md as pages.", "expect": "show_document", "args": {"path": "notes/report.md"}}
+{"id": "show_document-near-miss", "question": "How do I make a heading in Markdown?", "expect": "none", "pair": "show_document"}
+{"id": "show_slides-needs", "question": "Show talk/slides.md as a slide deck.", "expect": "show_slides", "args": {"path": "talk/slides.md"}}
+{"id": "show_slides-near-miss", "question": "How many slides should a ten minute talk have?", "expect": "none", "pair": "show_slides"}
+{"id": "save_memory-needs", "question": "Remember for next time that I prefer answers in metric units.", "expect": "save_memory", "args": {"fact": "metric"}}
+{"id": "save_memory-near-miss", "question": "What is the difference between metric and imperial units?", "expect": "none", "pair": "save_memory"}
+{"id": "update_memory-needs", "question": "I've moved from Manila to Cebu, please update what you saved about where I live.", "expect": ["update_memory", "read_memory"]}
+{"id": "update_memory-near-miss", "question": "How far is Cebu from Manila?", "expect": "none", "pair": "update_memory"}
+{"id": "forget_memory-needs", "question": "Forget that I'm vegetarian, that's no longer true.", "expect": ["forget_memory", "read_memory"]}
+{"id": "forget_memory-near-miss", "question": "Is a vegetarian diet healthy?", "expect": "none", "pair": "forget_memory"}
+{"id": "read_memory-needs", "question": "What do you remember about me from earlier conversations?", "expect": "read_memory"}
+{"id": "read_memory-near-miss", "question": "How does human memory work?", "expect": "none", "pair": "read_memory"}
+{"id": "ask_user-needs", "question": "Convert the file for me.", "expect": "ask_user"}
+{"id": "ask_user-near-miss", "question": "Convert this to French: good morning.", "expect": "none", "pair": "ask_user"}
+{"id": "advance-needs", "messages": [{"role": "user", "content": "Help me tidy my notes folder."}, {"role": "assistant", "content": "Here is the plan:\n1. Find every Markdown file in notes/\n2. Merge the duplicates\n3. Write an index in notes/README.md"}, {"role": "user", "content": "Step 1 is done, I found all the Markdown files. Mark it off."}], "expect": "advance", "args": {"step": "1"}}
+{"id": "advance-near-miss", "messages": [{"role": "user", "content": "Help me tidy my notes folder."}, {"role": "assistant", "content": "Here is the plan:\n1. Find every Markdown file in notes/\n2. Merge the duplicates\n3. Write an index in notes/README.md"}, {"role": "user", "content": "What is step 2 of the plan again?"}], "expect": "none", "pair": "advance"}

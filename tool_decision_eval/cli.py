@@ -6,28 +6,14 @@ import argparse, hashlib, json, os, sys, time
 
 from pathlib import Path
 
-from . import grade
+from . import grade, suites
 from .parse import CALL_OPENERS, parse_calls, started
 
-DATA = Path(__file__).parent / "data"
 STOP_STRINGS = ("<|im_end|>", "<|endoftext|>", "<|eot_id|>", "<|end|>")
 
 
-def load_questions(path, limit):
-    rows = [json.loads(l) for l in Path(path).read_text().splitlines() if l.strip()]
-    for r in rows:
-        if r.get("label") not in grade.LABELS:
-            sys.exit(f"{path}: row {r.get('id')} has label {r.get('label')!r}, expected one of {grade.LABELS}")
-        r.setdefault("answers", [])
-    if limit and limit < len(rows):  # evenly spaced, so every stratum of an ordered set is in
-        rows = [rows[i * len(rows) // limit] for i in range(limit)]
-    return rows
-
-
-def render(tok, template, prompt, tools, question, kwargs):
-    messages = [{"role": "system", "content": prompt["system"]}] if prompt.get("system") else []
-    messages += prompt.get("preamble", []) + [{"role": "user", "content": question}]
-    return tok.apply_chat_template(messages, tools=tools, add_generation_prompt=True, tokenize=False,
+def render(tok, template, q, kwargs):
+    return tok.apply_chat_template(q["messages"], tools=q["tools"], add_generation_prompt=True, tokenize=False,
                                    chat_template=template, **kwargs)
 
 
@@ -72,33 +58,46 @@ def main(argv=None):
                     "its chat template and tokenizer render every prompt")
     ap.add_argument("--file", action="append", default=[], help=".gguf or .pte to compare (repeatable)")
     ap.add_argument("--pte-tokenizer", help="tokenizer.json for .pte files (default: the reference's)")
-    ap.add_argument("--questions", default=str(DATA / "decisions.jsonl"))
-    ap.add_argument("--tools", default=str(DATA / "tools.json"), help="OpenAI function schema list")
-    ap.add_argument("--prompt", default=str(DATA / "prompt.json"), help='{"system": str, "preamble": [messages]}')
+    ap.add_argument("--suite", action="append", help=f"shipped suite ({', '.join(suites.SHIPPED)}), 'all', or a "
+                    "suite folder (repeatable; default: search)")
+    ap.add_argument("--cases", help="your own cases .jsonl, with --tools (and optionally --prompt)")
+    ap.add_argument("--tools", help="OpenAI function schema list for --cases")
+    ap.add_argument("--prompt", help='{"system": str, "preamble": [messages]} for --cases')
     ap.add_argument("--template", help="Jinja chat template file (default: the reference's)")
     ap.add_argument("--template-kwargs", default="{}", help='e.g. \'{"enable_thinking": false}\'')
-    ap.add_argument("--call-token", help="token that opens a call (default: the first of %s in the vocab)" % (CALL_OPENERS,))
-    ap.add_argument("--limit", type=int, help="evenly spaced subset of this many rows")
+    ap.add_argument("--call-token", help="token that opens a call (default: the one in the chat template, of %s)" % (CALL_OPENERS,))
+    ap.add_argument("--limit", type=int, help="evenly spaced subset of this many rows per suite")
     ap.add_argument("--max-tokens", type=int, default=384)
-    ap.add_argument("--n-ctx", type=int, default=4096)
+    ap.add_argument("--n-ctx", type=int, default=8192)
     ap.add_argument("--device", default="auto", help="reference device: auto, cpu, mps, cuda")
     ap.add_argument("--dtype", default="float32", help="reference dtype")
     ap.add_argument("--no-reference-run", action="store_true", help="use the reference for template only")
+    ap.add_argument("--phone", action="append", default=[], metavar="FILE.jsonl",
+                    help="rows the phone runner wrote (eval-results/tde/<model>.jsonl), graded as engine <model>@phone")
+    ap.add_argument("--phone-export", metavar="DIR", help="write DIR/cases.jsonl for the phone runner and stop")
     ap.add_argument("--out", default="tde-out")
     a = ap.parse_args(argv)
 
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(a.reference)
     template = Path(a.template).read_text() if a.template else None
-    questions = load_questions(a.questions, a.limit)
-    tools = json.loads(Path(a.tools).read_text())
-    prompt = json.loads(Path(a.prompt).read_text())
+    names = [n for s in (a.suite or ([] if a.cases else ["search"])) for n in (suites.SHIPPED if s == "all" else [s])]
+    by_suite = {}
+    for n in names:
+        rows = suites.load(n, a.limit)
+        by_suite[rows[0]["suite"]] = rows
+    if a.cases:
+        rows = suites.load(a.cases, a.limit, a.tools, a.prompt)
+        by_suite[rows[0]["suite"]] = rows
+    questions = [q for rows in by_suite.values() for q in rows]
     kwargs = json.loads(a.template_kwargs)
+    if a.phone_export:
+        return phone_export(Path(a.phone_export), questions, a.max_tokens, kwargs.get("enable_thinking", True))
     # The opener the template writes calls with. Vocab presence is not enough: LFM3 keeps LFM2's
     # <|tool_call_start|> token in its vocabulary but writes <tool_call>.
     source = template or tok.chat_template or ""
     a.call_token = a.call_token or next((o for o in CALL_OPENERS if o in source), None)
-    prompts = {q["id"]: render(tok, template, prompt, tools, q["question"], kwargs) for q in questions}
+    prompts = {q["id"]: render(tok, template, q, kwargs) for q in questions}
 
     from . import engines
     todo = [] if a.no_reference_run else [("reference", lambda: engines.HF(a.reference, tok, a.device, a.dtype))]
@@ -110,25 +109,28 @@ def main(argv=None):
             todo.append((Path(f).name, lambda f=f, tj=tj: engines.PTE(f, tj)))
         else:
             sys.exit(f"{f}: expected .gguf or .pte")
-    if not todo:
-        sys.exit("nothing to run: give --file, or drop --no-reference-run")
+    if not todo and not a.phone:
+        sys.exit("nothing to run: give --file or --phone, or drop --no-reference-run")
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    key = hashlib.sha1(json.dumps([prompts, a.max_tokens, a.call_token, a.dtype]).encode()).hexdigest()
+    keys = {i: row_key(p, a.max_tokens, a.call_token, a.dtype) for i, p in prompts.items()}
     results = {}
     for name, make in todo:
-        results[name] = _cached_run(out / f"{name}.jsonl", key, make, questions, prompts, a, (*STOP_STRINGS, tok.eos_token))
+        results[name] = _cached_run(out / f"{name}.jsonl", keys, make, questions, prompts, a, (*STOP_STRINGS, tok.eos_token))
+    for f in a.phone:
+        results[Path(f).stem + "@phone"] = phone_rows(Path(f), questions)
 
-    first = next(iter(results))
     report = {
-        "questions": a.questions, "rows": len(questions),
-        "label_counts": {lab: sum(q["label"] == lab for q in questions) for lab in grade.LABELS},
-        "settings": {"reference": a.reference, "files": a.file, "max_tokens": a.max_tokens, "template_kwargs": kwargs,
-                     "template": a.template or "reference", "call_token": a.call_token, "decoding": "greedy"},
-        "summary": {n: grade.summarize(questions, r) for n, r in results.items()},
-        "diff": {n: grade.diff(questions, results["reference"], r) for n, r in results.items() if n != "reference"}
-        if "reference" in results else {},
+        "suites": {s: {"rows": len(rows), "label_counts": {lab: sum(q["label"] == lab for q in rows) for lab in grade.LABELS}}
+                   for s, rows in by_suite.items()},
+        "settings": {"reference": a.reference, "files": [Path(f).name for f in a.file], "max_tokens": a.max_tokens,
+                     "template_kwargs": kwargs, "template": a.template or "reference", "call_token": a.call_token,
+                     "limit": a.limit, "decoding": "greedy"},
+        "summary": {s: {n: grade.summarize(rows, r) for n, r in results.items()} for s, rows in by_suite.items()},
+        "diff": {s: {n: grade.diff(rows, results["reference"], r) for n, r in results.items() if n != "reference"}
+                 for s, rows in by_suite.items()} if "reference" in results else {},
+        "per_tool": {n: grade.per_tool(questions, r) for n, r in results.items()},
         "rows_by_engine": {n: [{**r[q["id"]], **grade.grade_row(q, r[q["id"]])} for q in questions] for n, r in results.items()},
     }
     md = grade.markdown(report)
@@ -138,27 +140,74 @@ def main(argv=None):
     print(f"Wrote {out / 'report.md'} and {out / 'report.json'}", file=sys.stderr)
 
 
-def _cached_run(path, key, make, questions, prompts, a, stop_strings):
-    """Rows already on disk under the same prompts and settings are reused; the rest are run."""
+def phone_export(out, questions, max_tokens, thinking):
+    """The cases as the phone runner reads them: messages and tools, rendered there by the app's template."""
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "cases.jsonl").open("w") as f:
+        for q in questions:
+            f.write(json.dumps({"id": q["id"], "messages": q["messages"], "tools": q["tools"], "max_tokens": max_tokens,
+                                "thinking": thinking}, ensure_ascii=False) + "\n")
+    print(f"Wrote {len(questions)} cases to {out / 'cases.jsonl'}", file=sys.stderr)
+
+
+def phone_rows(path, questions):
+    """The phone runner's lines as engine rows. Calls are parsed from the raw stream with the laptop's
+    parsers; the app's own parsed calls stand in only when the stream carries no call markup."""
+    have = {}
+    for line in path.read_text().splitlines():
+        if line.strip():
+            r = json.loads(line)
+            have[r["id"]] = r
+    missing = [q["id"] for q in questions if q["id"] not in have]
+    if missing:
+        sys.exit(f"{path}: {len(missing)} cases have no phone row (first: {missing[0]}); run the phone again, it resumes")
+    rows = {}
+    for q in questions:
+        r = have[q["id"]]
+        text = r.get("raw") or r.get("content", "")
+        reply = text.rsplit("</think>", 1)[-1].strip()
+        calls = parse_calls(reply)
+        if not calls and not started(reply):
+            calls = [{"name": c["name"], "arguments": _json_or(c["arguments"])} for c in r.get("app_calls", [])]
+        rows[q["id"]] = {"id": q["id"], "calls": calls, "started": started(reply) or bool(calls), "reply": reply,
+                         "raw": text, "p_call": None, "truncated": r.get("stop") == "MAX_TOKENS",
+                         "prompt_tokens": r.get("prompt_tokens", 0), "new_tokens": r.get("new_tokens", 0),
+                         "seconds": r.get("seconds", 0), "error": r.get("error")}
+    return rows
+
+
+def _json_or(s):
+    try:
+        v = json.loads(s)
+        return v if isinstance(v, dict) else {}
+    except (TypeError, json.JSONDecodeError):
+        return {}
+
+
+def row_key(prompt, max_tokens, call_token, dtype):
+    return hashlib.sha1(json.dumps([prompt, max_tokens, call_token, dtype]).encode()).hexdigest()
+
+
+def _cached_run(path, keys, make, questions, prompts, a, stop_strings):
+    """Rows already on disk for the same prompt and settings are reused; the rest are run and appended."""
     have = {}
     if path.exists():
-        lines = [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
-        if lines and lines[0].get("key") == key:
-            have = {r["id"]: r for r in lines[1:]}
+        for line in path.read_text().splitlines():
+            r = json.loads(line) if line.strip() else {}
+            if r.get("id") in keys and r.get("key") == keys[r["id"]]:
+                have[r["id"]] = r
     missing = [q for q in questions if q["id"] not in have]
     if missing:
-        print(f"{path.stem}: running {len(missing)} rows ({len(have)} cached)", file=sys.stderr, flush=True)
+        print(f"{path.stem}: running {len(missing)} rows ({len(questions) - len(missing)} cached)", file=sys.stderr, flush=True)
         engine = make()
-        with path.open("w") as f:
-            f.write(json.dumps({"key": key}) + "\n")
-            for r in have.values():
-                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        with path.open("a") as f:
             for q, r in zip(missing, run_engine(engine, missing, prompts, a.max_tokens, a.call_token, stop_strings)):
+                r["key"] = keys[q["id"]]
                 have[r["id"]] = r
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
                 f.flush()
-                print(f"  {q['label']:<10} {'call' if r['calls'] else '    '} p={_p(r['p_call'])} {q['question'][:70]}",
-                      file=sys.stderr, flush=True)
+                print(f"  {q['id'][:40]:<40} {','.join(c['name'] for c in r['calls']) or '-':<14} p={_p(r['p_call'])} "
+                      f"{q['question'][:60]!r}", file=sys.stderr, flush=True)
     return have
 
 

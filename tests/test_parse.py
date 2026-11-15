@@ -25,6 +25,10 @@ def test_lfm_pythonic():
                                 {"name": "b", "arguments": {"xs": ["p", "q"]}}]
 
 
+def test_dotted_names():
+    assert parse_calls('<|tool_call_start|>[math.sum(xs=[1, 2])]<|tool_call_end|>') == [{"name": "math.sum", "arguments": {"xs": [1, 2]}}]
+
+
 def test_xml_parameters_qwen35_and_lfm3():
     xml = ("<tool_call>\n<function=web_search>\n<parameter=query>\nManila weather\n</parameter>\n"
            "</function>\n</tool_call>")

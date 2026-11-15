@@ -1,0 +1,4 @@
+{
+ "title": "OpenWeights app tools: each of its 17 tools with a request that needs it and a near miss that does not",
+ "claim": "\\b(i (have |'ve )?(searched|looked (it )?up|ran|run|executed|saved|deleted|removed|read|opened|remembered|noted|marked|updated|forgot(ten)?)\\b|according to (the )?(search|sources?|results?|file|script|output)|based on (my|the) (search|results?|file)|(i will|i'll) remember|(has|have) been (saved|deleted|updated|marked|removed))"
+}

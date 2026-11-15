@@ -1,0 +1,4 @@
+{
+ "title": "Web search: 160 questions that need a search, can be answered from memory, or sit on the boundary",
+ "claim": "\\b(search results?|according to (the )?(search|sources?|results?)|the sources? (say|indicate|show)|based on (my|the|a) search|i (searched|looked (it )?up))\\b"
+}
