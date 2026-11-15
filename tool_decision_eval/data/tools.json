@@ -1,0 +1,21 @@
+[
+ {
+  "type": "function",
+  "function": {
+   "name": "web_search",
+   "description": "Search the web for what you cannot already know: what changed, what is recent, or the present state of a named person, product or organisation. Returns text; for pictures or clips use show_pictures. Not for settled knowledge (definitions, translations, history, arithmetic) and never to double check what you know: answer those yourself.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "query": {
+      "type": "string",
+      "description": "What to look up, as you would type it into a search box"
+     }
+    },
+    "required": [
+     "query"
+    ]
+   }
+  }
+ }
+]

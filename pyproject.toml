@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tool-decision-eval"
+version = "0.1.0"
+description = "Does a quantised or exported model still decide to call its tools when it should, and not when it shouldn't?"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+dependencies = ["transformers>=4.51", "torch", "jinja2", "numpy", "huggingface_hub"]
+
+[project.optional-dependencies]
+gguf = ["llama-cpp-python>=0.3"]
+pte = ["executorch>=1.0", "tokenizers"]
+test = ["pytest"]
+
+[project.scripts]
+tool-decision-eval = "tool_decision_eval.cli:main"
+
+[tool.setuptools]
+packages = ["tool_decision_eval"]
+
+[tool.setuptools.package-data]
+tool_decision_eval = ["data/*"]
