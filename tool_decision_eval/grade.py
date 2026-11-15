@@ -67,6 +67,7 @@ def grade_row(q, r):
         "label": q["label"],
         "called": called,
         "malformed": r["started"] and not called,
+        "truncated": r.get("truncated", False),
         "fabricated": not called and bool(SEARCH_TALK.search(reply)),
         # Only replies that answered without a call can be graded: no tool is run here.
         "correct": correct(reply, q["answers"]) if q.get("answers") and not called and not q.get("stale_risk") else None,
@@ -91,6 +92,7 @@ def summarize(questions, rows):
         "called_no_target": frac(sum(x["called"] for x in by["no_target"]), len(by["no_target"])),
         "claimed_search_without_calling": frac(sum(x["fabricated"] for x in g), len(g)),
         "malformed_calls": frac(sum(x["malformed"] for x in g), len(g)),
+        "hit_token_limit": frac(sum(x["truncated"] for x in g), len(g)),
         "correct_without_call": frac(sum(x["correct"] for x in graded), len(graded)),
         "abstained": frac(sum(x["abstained"] for x in g), len(g)),
         "mean_p_call_needs_tool": p(by["needs_tool"]),
@@ -110,6 +112,8 @@ def diff(questions, ref, rows):
     return {
         "reference_calls": len(ref_called),
         "lost": len(lost), "gained": len(gained),
+        "lost_needs_tool": sum(q["label"] == "needs_tool" for q in lost),
+        "gained_no_tool": sum(q["label"] == "no_tool" for q in gained),
         "agree": sum(bool(ref[q["id"]]["calls"]) == bool(rows[q["id"]]["calls"]) for q in questions),
         "rows": len(questions),
         "mean_p_call_on_reference_calls": {"reference": _mean(p(ref)), "file": _mean(p(rows))},
@@ -126,7 +130,7 @@ def _mean(v):
 SUMMARY_COLUMNS = [
     ("called_when_needed", "Called when needed"), ("called_when_not_needed", "Called when not needed"),
     ("called_no_target", "Called, no target"), ("claimed_search_without_calling", "Claimed a search, no call"),
-    ("malformed_calls", "Malformed call"), ("correct_without_call", "Correct without a call"),
+    ("malformed_calls", "Malformed call"), ("hit_token_limit", "Hit token limit"), ("correct_without_call", "Correct without a call"),
     ("abstained", "Abstained"), ("mean_p_call_needs_tool", "Mean p(call), needed"),
     ("mean_p_call_no_tool", "Mean p(call), not needed"), ("median_seconds", "Median s"),
 ]
@@ -137,7 +141,8 @@ def markdown(report):
            f"({', '.join(f'{k} {v}' for k, v in report['label_counts'].items())}). Greedy decoding, one turn, no tool is run.", ""]
     for name, d in report["diff"].items():
         lost = f"**{name} lost {d['lost']} of {d['reference_calls']} calls against its source**"
-        out.append(f"- {lost}, and gained {d['gained']} it did not make. Same decision on {d['agree']} of {d['rows']} rows. "
+        out.append(f"- {lost} ({d['lost_needs_tool']} on rows that need a tool), and gained {d['gained']} it did not make "
+                   f"({d['gained_no_tool']} on rows that do not). Same decision on {d['agree']} of {d['rows']} rows. "
                    f"Mean p(call) on the reference's calling rows: {d['mean_p_call_on_reference_calls']['reference']} "
                    f"reference, {d['mean_p_call_on_reference_calls']['file']} file.")
         if d["prompt_token_count_differs"]:

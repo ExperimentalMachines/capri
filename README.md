@@ -82,6 +82,35 @@ not guessed at.
   in a wrong sentence and miss a right reply phrased differently.
 - No KL or perplexity, no speed claims (the seconds column is the laptop's, for orientation).
 
+## First runs (2026-11-16, Apple silicon laptop, 40 evenly spaced rows)
+
+Full reports: [runs/lfm25-q4km-40/report.md](runs/lfm25-q4km-40/report.md) and
+[runs/lfm3-40/report.md](runs/lfm3-40/report.md).
+
+| Model, engine | Called when needed (of 19) | Called when not needed (of 14) | Calls lost / gained against reference | Mean p(call) on reference's calls |
+|---|---:|---:|---|---|
+| LFM2.5 1.2B, reference fp32 | 0 | 0 | | 0.484 |
+| LFM2.5 1.2B, GGUF Q4_K_M | 1 | 0 | 0 of 1 lost, 2 gained | 0.634 |
+| LFM3 1.7B, reference fp32, thinking on | 19 | 9 | | 1.0 |
+| LFM3 1.7B, GGUF Q4_K_M | 19 | 8 | 2 of 34 lost (both unneeded), 1 gained | 0.97 |
+| LFM3 1.7B, `.pte` 8da4w round to nearest | 19 | 9 | 0 of 34 lost, 1 gained | 0.999 |
+
+How to read them:
+
+- Under this single-turn prompt, unquantised LFM2.5 almost never calls (1 of 40), so there is
+  little for a quantised file to lose. The OpenWeights laptop probe that measured 16 of 16
+  attached the app's note on the named subject to each question; the default prompt here
+  does not. A diff is only as informative as the reference's calling rate: check that first.
+- LFM3's over-searching is already in the unquantised model here (9 of 14 unneeded questions),
+  and the round-to-nearest `.pte` matches its source on 39 of 40 rows. So on this prompt, on
+  the laptop, the phone's 55 of 60 is not something the export added. Whether the phone's
+  kernels or the app's loop add to it is what the v2 phone runner is for.
+- With thinking on, LFM3 decides inside the think block, so p(call) after it is near 0 or 1.
+  For a graded signal, run with thinking off (`--template-kwargs '{"enable_thinking": false}'`
+  where the template supports it) or read the calls.
+- LFM2.5's prompt through its HF template matches the OpenWeights app's bytes except for
+  whitespace inside the tool JSON (the app indents it, the template writes it compact).
+
 ## Question set
 
 `tool_decision_eval/data/decisions.jsonl` is OpenWeights' 160-row decision set
