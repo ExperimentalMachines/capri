@@ -162,6 +162,44 @@ How to read them:
 - LFM2.5's prompt through its HF template matches the OpenWeights app's bytes except for
   whitespace inside the tool JSON (the app indents it, the template writes it compact).
 
+## LFM3 1.7B across the suites (2026-11-16, Apple silicon laptop)
+
+Up to 40 evenly spaced cases per suite, thinking on, at most 1,024 new tokens. Full report:
+[runs/lfm3/report.md](runs/lfm3/report.md). Each cell: reference fp32 / GGUF Q4_K_M / `.pte`
+8da4w round to nearest.
+
+| Suite | Called when needed | Called when not needed | Same decision as reference (GGUF, .pte) | Wrong tool, bad arguments, malformed |
+|---|---|---|---|---|
+| search (40) | 19/19, 19/19, 19/19 | 9/14, 8/14, 9/14 | 37/40, 39/40 | none |
+| openweights (34) | 14/17, 16/17, 15/17 | 1/17, 1/17, 1/17 | 32/34, 31/34 | none |
+| bfcl_relevance (16) | 9/16, 10/16, 12/16 | | 13/16, 13/16 | none |
+| bfcl_irrelevance (40) | | 2/40, 3/40, 2/40 | 37/40, 38/40 | none |
+| bfcl_live_irrelevance (40) | | 2/40, 3/40, 2/40 | 39/40, 40/40 | 1 malformed call on the reference |
+
+How to read them:
+
+- Neither export breaks LFM3's tool use on the laptop. No wrong tools and no bad arguments in
+  any engine. Each file's disagreements with the reference run both ways: it adds some calls
+  and drops others.
+- Most differences on cases that need a tool come from the token limit, not the decision: 7
+  of the 11 are cases where one side was still thinking at 1,024 tokens, usually the
+  reference. It hit the limit on 7 such cases, the GGUF on 5 and the `.pte` on 3, so the
+  files look as if they call more. The other 4 are real decision changes:
+  - Both files called on the Concord movie-ticket case, where the reference answered without
+    a call.
+  - The `.pte` also called on "a house to stay for 4 in London".
+  - For "Convert the file for me", the `.pte` asked "Which file?" in prose where the
+    reference called `ask_user`.
+
+  Rerun with `--max-tokens 2048` before reading more into these.
+- On the 17 app tools, the over-calling is the search tool's alone. Each near miss for the other
+  16 tools called nothing, in every engine. The one near miss that did call ("How far is Cebu
+  from Manila?", paired with `update_memory`) called `web_search`.
+- Two per-tool zeros are the model's choices, made the same way in all three engines.
+  "What is 48731 multiplied by 9277?" was answered without `run_script`, correctly
+  (452,077,487). "Forget that I'm vegetarian" called `read_memory` first, which the case
+  accepts, and never got as far as `forget_memory` in one turn.
+
 ## Suites
 
 | Suite | Cases | Expect | Tools |
