@@ -172,7 +172,7 @@ def per_tool(questions, rows):
         out[n] = {
             "called_when_needed": frac(sum(n in g[q["id"]]["tools_called"] for q in need), len(need)),
             "near_miss_called_anything": frac(sum(g[q["id"]]["called"] for q in near), len(near)),
-            "called_unasked": sum(n in g[q["id"]]["tools_called"] and n not in (expected(q) or ()) and q["expect"] != "any"
+            "called_unasked": sum(n in g[q["id"]]["tools_called"] and n not in (expected(q) or ()) and q["expect"] not in ("any", "either")
                                   for q in questions),
         }
     return out

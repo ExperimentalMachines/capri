@@ -92,9 +92,8 @@ def test_summary_and_diff_count_lost_calls():
 
 
 def test_per_tool_pairs():
-    qs = [case("calc", id="n"), case("none", id="m", pair="calc"), case("none", id="o")]
-    rows = {"n": row(calls=True, name="calc", args={"n": 1}), "m": row(calls=True, name="calc", args={"n": 1}),
-            "o": row(calls=True, name="calc", args={"n": 1})}
+    qs = [case("calc", id="n"), case("none", id="m", pair="calc"), case("none", id="o"), case("either", id="p")]
+    rows = {i: row(calls=True, name="calc", args={"n": 1}) for i in "nmop"}  # an either-fine call is not unasked
     assert per_tool(qs, rows)["calc"] == {"called_when_needed": "1/1", "near_miss_called_anything": "1/1", "called_unasked": 2}
 
 
