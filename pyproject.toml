@@ -16,6 +16,10 @@ gguf = ["llama-cpp-python>=0.3"]
 pte = ["executorch>=1.0", "tokenizers"]
 test = ["pytest"]
 
+[project.urls]
+Repository = "https://github.com/ExperimentalMachines/capri"
+Issues = "https://github.com/ExperimentalMachines/capri/issues"
+
 [project.scripts]
 capri = "capri.cli:main"
 
