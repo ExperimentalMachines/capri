@@ -133,3 +133,9 @@ def test_phone_rows(tmp_path):
     assert rows["a"]["calls"] == [{"name": "web_search", "arguments": {"query": "Rome"}}] and rows["a"]["p_call"] is None
     assert not rows["b"]["calls"] and rows["b"]["truncated"]
     assert rows["c"]["calls"] == [{"name": "web_search", "arguments": {"query": "x"}}]  # the app's parse stands in
+
+
+def test_every_shipped_suite_loads_in_full():
+    from tool_decision_eval import suites
+    for n in suites.SHIPPED:
+        assert suites.load(n, None)

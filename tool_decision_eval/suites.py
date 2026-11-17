@@ -44,14 +44,16 @@ def load(spec, limit=None, tools=None, prompt=None):
         rows = [rows[i * len(rows) // limit] for i in range(limit)]
     for r in rows:
         r.setdefault("expect", OLD_LABELS.get(r.pop("label", None)))
-        if not r["expect"] or not (r.get("tools") or tools):
+        own = r["tools"] if r.get("tools") is not None else tools
+        # An empty tool list is a fair "no call" case (BFCL ships four): the model must not invent one.
+        if not r["expect"] or own is None or (not own and r["expect"] != "none"):
             sys.exit(f"{cases_path}: case {r.get('id')} needs an expect and tools (on the case, tools.json or --tools)")
         msgs = r.get("messages") or [{"role": "user", "content": r["question"]}]
         if msgs[0]["role"] == "system":
             head, msgs = msgs[:1], msgs[1:]
         else:
             head = [{"role": "system", "content": prompt["system"]}] if prompt.get("system") else []
-        r.update(id=f"{name}/{r['id']}", suite=name, label=label(r["expect"]), tools=r.get("tools") or tools,
+        r.update(id=f"{name}/{r['id']}", suite=name, label=label(r["expect"]), tools=own,
                  question=r.get("question") or next(m["content"] for m in reversed(msgs) if m["role"] == "user"),
                  messages=head + prompt.get("preamble", []) + msgs, claim=meta.get("claim"))
         r.setdefault("answers", [])
