@@ -5,7 +5,8 @@
 #   scripts/phone.sh <adb-serial> <engine-debug-androidTest.apk> capri-phone model.gguf model.pte ...
 #   capri --reference R --file model.gguf ... --phone capri-phone/results/model.gguf.jsonl
 #
-# A .pte needs its tokenizer beside it as <stem>.tokenizer.json. The APK is OpenWeights'
+# capri --phone-serial does these steps itself, over an ssh tunnel if you want one; this script
+# is for a phone you drive by hand. A .pte needs its tokenizer beside it as <stem>.tokenizer.json. The APK is OpenWeights'
 # core/engine test APK with ToolDecisionEval in it. Install is by push and pm install, which
 # also works on ROMs that refuse adb install. The run is started detached and polled, so a
 # dropped wireless session does not kill it; rerunning resumes where the rows stop.

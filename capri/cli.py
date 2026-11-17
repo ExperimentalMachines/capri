@@ -75,6 +75,18 @@ def main(argv=None):
     ap.add_argument("--phone", action="append", default=[], metavar="FILE.jsonl",
                     help="rows the phone runner wrote (eval-results/tde/<model>.jsonl), graded as engine <model>@phone")
     ap.add_argument("--phone-export", metavar="DIR", help="write DIR/cases.jsonl for the phone runner and stop")
+    ap.add_argument("--phone-serial", metavar="SERIAL", help="answer the cases on this adb device too, then grade its rows")
+    ap.add_argument("--phone-model", action="append", default=[], metavar="FILE",
+                    help="a .gguf or .pte to push and run on the phone (repeatable; --file stays on the laptop)")
+    ap.add_argument("--phone-apk", metavar="APK", help="OpenWeights' engine-debug-androidTest.apk to install first")
+    ap.add_argument("--phone-timeout", type=int, help="give up on the phone after this many seconds (rerun resumes)")
+    ap.add_argument("--phone-poll", type=int, default=20, help="seconds between looks at the phone's progress")
+    ap.add_argument("--adb", help="adb binary (default: $ADB, then adb)")
+    ap.add_argument("--adb-host", metavar="HOST:PORT", help="adbd to use, e.g. 127.0.0.1:5038 behind an ssh -L")
+    ap.add_argument("--ssh", metavar="USER@HOST", help="open the tunnel to a remote adb server for --phone-serial")
+    ap.add_argument("--ssh-key", metavar="KEY", help="private key for --ssh")
+    ap.add_argument("--ssh-remote", default="127.0.0.1:5037", help="adbd on the far side of --ssh")
+    ap.add_argument("--ssh-port", type=int, help="local port for --ssh (default: a free one)")
     ap.add_argument("--out", default="capri-out")
     a = ap.parse_args(argv)
 
@@ -99,6 +111,9 @@ def main(argv=None):
     a.call_token = a.call_token or next((o for o in CALL_OPENERS if o in source), None)
     prompts = {q["id"]: render(tok, template, q, kwargs) for q in questions}
 
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    pulled = _phone(a, out, questions, kwargs)
     from . import engines
     todo = [] if a.no_reference_run else [("reference", lambda: engines.HF(a.reference, tok, a.device, a.dtype))]
     for f in a.file:
@@ -109,17 +124,16 @@ def main(argv=None):
             todo.append((Path(f).name, lambda f=f, tj=tj: engines.PTE(f, tj)))
         else:
             sys.exit(f"{f}: expected .gguf or .pte")
-    if not todo and not a.phone:
-        sys.exit("nothing to run: give --file or --phone, or drop --no-reference-run")
-
-    out = Path(a.out)
-    out.mkdir(parents=True, exist_ok=True)
+    if not todo and not a.phone and not pulled:
+        sys.exit("nothing to run: give --file, --phone-serial or --phone, or drop --no-reference-run")
     keys = {i: row_key(p, a.max_tokens, a.call_token, a.dtype) for i, p in prompts.items()}
     results = {}
     for name, make in todo:
         results[name] = _cached_run(out / f"{name}.jsonl", keys, make, questions, prompts, a, (*STOP_STRINGS, tok.eos_token))
     for f in a.phone:
         results[Path(f).stem + "@phone"] = phone_rows(Path(f), questions)
+    for name, path in pulled.items():
+        results[name + "@phone"] = phone_rows(path, questions)
 
     report = {
         "suites": {s: {"rows": len(rows), "label_counts": {lab: sum(q["label"] == lab for q in rows) for lab in grade.LABELS}}
@@ -138,6 +152,47 @@ def main(argv=None):
     (out / "report.md").write_text(md)
     print(md)
     print(f"Wrote {out / 'report.md'} and {out / 'report.json'}", file=sys.stderr)
+
+
+def _phone(a, out, questions, kwargs):
+    """Answer the cases on the phone first, so a phone that cannot be reached stops the run before
+    the laptop spends its hours. Returns {model name: rows the phone wrote}. `--phone-model` files
+    are pushed; `--file` ones stay on the laptop, so one run gives the reference, the file's laptop
+    kernels and the phone.
+    """
+    if not a.phone_serial:
+        ignored = [f for f, given in (("--phone-model", a.phone_model), ("--phone-apk", a.phone_apk),
+                                      ("--ssh", a.ssh), ("--adb-host", a.adb_host),
+                                      ("--phone-timeout", a.phone_timeout)) if given]
+        if ignored:
+            sys.exit(f"{', '.join(ignored)} describe a phone run: add --phone-serial, or drop them")
+        return {}
+    from . import phone as ph
+    cases = out / "phone"
+    phone_export(cases, questions, a.max_tokens, kwargs.get("enable_thinking", True))
+    host, port = None, None
+    if a.adb_host:
+        host, _, port = a.adb_host.partition(":")
+        if not host:
+            sys.exit(f"--adb-host {a.adb_host}: give HOST:PORT, e.g. 127.0.0.1:5038")
+        if port and not port.isdigit():
+            sys.exit(f"--adb-host {a.adb_host}: the port must be a number")
+        port = int(port) if port else 5037
+
+    def answer(host, port):
+        adb = ph.Adb(serial=a.phone_serial, host=host, port=port, binary=a.adb)
+        return ph.run(adb, cases, apk=a.phone_apk, models=[Path(m) for m in a.phone_model],
+                      timeout=a.phone_timeout, interval=a.phone_poll)
+
+    if a.ssh and a.adb_host:
+        sys.exit("--ssh opens its own forward: drop --adb-host, or keep --adb-host for a tunnel you opened")
+    try:
+        if a.ssh:
+            with ph.tunnel(a.ssh, key=a.ssh_key, local_port=a.ssh_port, remote=a.ssh_remote) as local:
+                return answer("127.0.0.1", local)
+        return answer(host, port)
+    except RuntimeError as e:  # adb, ssh and the phone all fail this way; a traceback helps nobody
+        sys.exit(f"phone: {e}")
 
 
 def phone_export(out, questions, max_tokens, thinking):

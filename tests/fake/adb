@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""A phone that is a directory: enough of adb for capri.phone.run to drive."""
+import json, os, pathlib, shutil, sys
+
+state = pathlib.Path(os.environ["FAKE_ADB_STATE"])
+(state / "calls.log").open("a").write(" ".join(sys.argv[1:]) + "\n")
+args = [a for a in sys.argv[1:]]
+while args and args[0] in ("-H", "-P", "-s"):
+    args = args[2:]
+verb, rest = args[0], args[1:]
+polls = int(os.environ.get("FAKE_ADB_POLLS", "2"))
+launched = state / "launched"
+count = state / "polls"
+
+
+def launched_count():
+    return int(count.read_text() or 0) if count.exists() else 0
+
+
+if verb == "devices":
+    print("List of devices attached")
+    print(f"{os.environ.get('FAKE_ADB_SERIAL', 'fake1')}\tdevice")
+elif verb == "push":
+    local, remote = rest
+    (state / "pushed").mkdir(exist_ok=True)
+    if os.path.isfile(local):
+        shutil.copy(local, state / "pushed" / pathlib.Path(remote).name)
+elif verb == "pull":
+    remote, local = rest
+    if (state / "rows").is_dir():
+        pathlib.Path(local).mkdir(parents=True, exist_ok=True)
+        for f in (state / "rows").glob("*.jsonl"):
+            shutil.copy(f, pathlib.Path(local) / f.name)
+    else:
+        sys.exit(1)
+elif verb == "shell":
+    cmd = rest[0]
+    sizes = json.loads(os.environ.get("FAKE_ADB_SIZES", "{}"))
+    if cmd.startswith("mkdir") or cmd.startswith("input keyevent") or cmd.startswith(": >"):
+        pass
+    elif cmd.startswith("stat -c"):
+        print(sizes.get(pathlib.Path(cmd.split()[3]).name, 0))
+    elif cmd.startswith("pm install"):
+        print("Success")
+    elif cmd.startswith("cat ") and "stamp" in cmd:
+        if (state / "stamp").exists():
+            print((state / "stamp").read_text())
+    elif cmd.startswith("echo "):
+        (state / "stamp").write_text(cmd[len("echo "):].split(" >")[0])
+    elif cmd.startswith("rm -f"):
+        for f in (state / "rows").glob("*.jsonl"):
+            f.unlink()
+    elif cmd.startswith("ls -1"):
+        print(os.environ.get("FAKE_ADB_MODELS", "m.gguf"))
+    elif cmd.startswith("nohup am instrument"):
+        (state / "instrument.txt").write_text(cmd)
+        launched.touch()
+        count.write_text("0")
+    elif cmd.startswith("pidof"):
+        if launched.exists() and launched_count() < polls:
+            count.write_text(str(launched_count() + 1))
+            print("1234")
+    elif cmd.startswith("grep -c INSTRUMENTATION_CODE"):
+        print(1 if launched.exists() and launched_count() >= polls else 0)
+    elif cmd.startswith("wc -l"):
+        print(min(launched_count(), polls) * 2)
+    elif cmd.startswith("tail"):
+        pass

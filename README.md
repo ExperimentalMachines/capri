@@ -102,7 +102,25 @@ not guessed at.
 
 ## On the phone
 
-`scripts/phone.sh` runs the cases on an Android phone through OpenWeights' `:core:engine`
+One command answers the cases on the phone and grades them, through the app's own engines:
+
+```bash
+capri --reference LiquidAI/LFM3-1.7B --suite search --max-tokens 1024 \
+  --phone-serial <adb-serial> --phone-apk engine-debug-androidTest.apk \
+  --phone-model LFM3-1.7B-8da4w-gptq-4k.pte --no-reference-run
+```
+
+Add `--ssh sshtunnel@ssh.qdc.qualcomm.com --ssh-key ~/.ssh/qdc.pem` when adb is on another
+machine (Qualcomm's device cloud, a lab rack): capri opens the `ssh -L` itself on a free local
+port, so it never fights an adb server already on 5037, and closes it at the end. `--adb-host
+HOST:PORT` uses a tunnel you opened yourself. `--phone-model` is repeatable and is pushed and
+answered on the phone; `--file` stays on the laptop, so one run can hold the reference, the
+file's laptop kernels and the phone. A dropped session costs one case: the runner is detached
+and rerunning the same command resumes where it stopped. [`docs/phone.md`](docs/phone.md) has
+the walkthrough, the QDC specifics and what the first 160-case session measured.
+
+`scripts/phone.sh` is the same steps as a shell script, for a phone you drive by hand or an
+older capri. It runs the cases on an Android phone through OpenWeights' `:core:engine`
 (llama.cpp and ExecuTorch as the app ships them, including the prefix reuse and state the
 engine carries from one conversation to the next), using the `ToolDecisionEval` instrumented
 test on OpenWeights' `test/tool-decision-eval` branch:

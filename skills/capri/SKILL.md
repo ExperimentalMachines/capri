@@ -78,9 +78,18 @@ instrumented test, OpenWeights branch `test/tool-decision-eval`). Build its APK 
 `./gradlew :core:engine:assembleDebugAndroidTest` (one Gradle build at a time).
 
 ```bash
+# one command: export, push, install, answer, pull, grade
+capri --reference R --suite all --limit 40 --max-tokens 1024 --no-reference-run \
+  --phone-serial <adb-serial> --phone-apk engine-debug-androidTest.apk \
+  --phone-model model.gguf --phone-model model.pte
+
+# same, where adb is on another machine: capri opens and closes the ssh -L itself
+capri ... --phone-serial <serial> --ssh user@host --ssh-key ~/.ssh/key.pem
+
+# manual: export now, answer on the phone later, grade the rows whenever
 capri --reference R --suite all --limit 40 --max-tokens 1024 --phone-export capri-phone
-ADB=~/Library/Android/sdk/platform-tools/adb scripts/phone.sh <ip:port> engine-debug-androidTest.apk capri-phone model.gguf model.pte
-capri --reference R --file model.gguf --file model.pte --suite all --limit 40 --max-tokens 1024 \
+ADB=~/Library/Android/sdk/platform-tools/adb scripts/phone.sh <serial> engine-debug-androidTest.apk capri-phone model.gguf model.pte
+capri --reference R --suite all --limit 40 --max-tokens 1024 --no-reference-run \
   --phone capri-phone/results/model.gguf.jsonl --phone capri-phone/results/model.pte.jsonl
 ```
 

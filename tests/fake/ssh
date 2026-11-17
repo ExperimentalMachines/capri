@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""An ssh that opens the forward it was asked for, and nothing else."""
+import os, socket, sys, time
+
+args = sys.argv[1:]
+pathlib_note = os.environ.get("FAKE_SSH_LOG")
+if pathlib_note:
+    open(pathlib_note, "w").write(" ".join(args))
+if "-N" not in args:
+    sys.exit("fake ssh: expected -N")
+port = int(args[args.index("-L") + 1].split(":")[0])
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("127.0.0.1", port))
+s.listen()
+while True:
+    time.sleep(0.2)
