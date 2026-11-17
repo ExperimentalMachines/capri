@@ -44,6 +44,9 @@ Other options: `--template` (a Jinja file to use instead of the reference's),
 384), `--device`, `--dtype` (reference, default float32), `--no-reference-run` (use the
 reference for its template and tokenizer only).
 
+For Claude Code, [skills/capri/SKILL.md](skills/capri/SKILL.md) teaches the agent to run and read it;
+copy the folder into `~/.claude/skills/`.
+
 ## Cases
 
 One JSON object per line:
