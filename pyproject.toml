@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tool-decision-eval"
+name = "capri-eval"
 version = "0.2.0"
 description = "Does a quantised or exported model still decide to call its tools when it should, and not when it shouldn't?"
 readme = "README.md"
@@ -17,10 +17,10 @@ pte = ["executorch>=1.0", "tokenizers"]
 test = ["pytest"]
 
 [project.scripts]
-tool-decision-eval = "tool_decision_eval.cli:main"
+capri = "capri.cli:main"
 
 [tool.setuptools]
-packages = ["tool_decision_eval"]
+packages = ["capri"]
 
 [tool.setuptools.package-data]
-tool_decision_eval = ["data/suites/*/*"]
+capri = ["data/suites/*/*"]

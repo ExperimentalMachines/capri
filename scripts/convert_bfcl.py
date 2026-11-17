@@ -1,4 +1,4 @@
-"""Convert BFCL v4's relevance and irrelevance sets into tool-decision-eval suites.
+"""Convert BFCL v4's relevance and irrelevance sets into capri suites.
 
     python scripts/convert_bfcl.py <dir with BFCL_v4_{live_relevance,irrelevance,live_irrelevance}.json>
 
@@ -11,7 +11,7 @@ from pathlib import Path
 
 TYPES = {"dict": "object", "float": "number", "tuple": "array", "list": "array", "int": "integer", "str": "string",
          "bool": "boolean"}
-OUT = Path(__file__).resolve().parent.parent / "tool_decision_eval" / "data" / "suites"
+OUT = Path(__file__).resolve().parent.parent / "capri" / "data" / "suites"
 
 
 def schema(s):

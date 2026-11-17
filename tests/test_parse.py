@@ -1,4 +1,4 @@
-from tool_decision_eval.parse import parse_calls, started
+from capri.parse import parse_calls, started
 
 Q = {"name": "web_search", "arguments": {"query": "Manila weather"}}
 

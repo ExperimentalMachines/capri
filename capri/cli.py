@@ -1,6 +1,6 @@
-"""tool-decision-eval: does a quantised or exported model still decide to call its tools?
+"""capri: does a quantised or exported model still decide to call its tools?
 
-    tool-decision-eval --reference LiquidAI/LFM2.5-1.2B-Instruct --file model-Q4_K_M.gguf --limit 40
+    capri --reference LiquidAI/LFM2.5-1.2B-Instruct --file model-Q4_K_M.gguf --limit 40
 """
 import argparse, hashlib, json, os, sys, time
 
@@ -53,7 +53,7 @@ def run_engine(engine, questions, prompts, max_new, call_token, stop_strings):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="tool-decision-eval", description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(prog="capri", description=__doc__.split("\n")[0])
     ap.add_argument("--reference", required=True, help="HF repo or local dir of the unquantised source model; "
                     "its chat template and tokenizer render every prompt")
     ap.add_argument("--file", action="append", default=[], help=".gguf or .pte to compare (repeatable)")
@@ -75,7 +75,7 @@ def main(argv=None):
     ap.add_argument("--phone", action="append", default=[], metavar="FILE.jsonl",
                     help="rows the phone runner wrote (eval-results/tde/<model>.jsonl), graded as engine <model>@phone")
     ap.add_argument("--phone-export", metavar="DIR", help="write DIR/cases.jsonl for the phone runner and stop")
-    ap.add_argument("--out", default="tde-out")
+    ap.add_argument("--out", default="capri-out")
     a = ap.parse_args(argv)
 
     from transformers import AutoTokenizer

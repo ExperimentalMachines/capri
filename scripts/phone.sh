@@ -1,9 +1,9 @@
 #!/bin/sh
 # Run exported cases on an Android phone through OpenWeights' own engines, and pull the rows.
 #
-#   tool-decision-eval --reference R --suite all --limit 40 --max-tokens 1024 --phone-export tde-phone
-#   scripts/phone.sh <adb-serial> <engine-debug-androidTest.apk> tde-phone model.gguf model.pte ...
-#   tool-decision-eval --reference R --file model.gguf ... --phone tde-phone/results/model.gguf.jsonl
+#   capri --reference R --suite all --limit 40 --max-tokens 1024 --phone-export capri-phone
+#   scripts/phone.sh <adb-serial> <engine-debug-androidTest.apk> capri-phone model.gguf model.pte ...
+#   capri --reference R --file model.gguf ... --phone capri-phone/results/model.gguf.jsonl
 #
 # A .pte needs its tokenizer beside it as <stem>.tokenizer.json. The APK is OpenWeights'
 # core/engine test APK with ToolDecisionEval in it. Install is by push and pm install, which

@@ -1,7 +1,7 @@
 """Answer matching cases carried over from OpenWeights' test_grade_decisions.py, plus the decision grades."""
-from tool_decision_eval import suites
-from tool_decision_eval.cli import decision_p
-from tool_decision_eval.grade import contains, correct, diff, grade_row, normalize, per_tool, summarize
+from capri import suites
+from capri.cli import decision_p
+from capri.grade import contains, correct, diff, grade_row, normalize, per_tool, summarize
 
 
 def test_an_alias_inside_a_word_is_not_credited():
@@ -122,7 +122,7 @@ def test_v01_question_sets_still_load(tmp_path):
 
 
 def test_phone_rows(tmp_path):
-    from tool_decision_eval.cli import phone_rows
+    from capri.cli import phone_rows
     qs = [case(id="a"), case("none", id="b"), case(id="c")]
     lines = [{"id": "a", "raw": "<think>x</think><tool_call>\n<function=web_search>\n<parameter=query>\nRome\n</parameter>\n"
                                 "</function>\n</tool_call>", "stop": "END_OF_TURN", "prompt_tokens": 9},
@@ -136,6 +136,6 @@ def test_phone_rows(tmp_path):
 
 
 def test_every_shipped_suite_loads_in_full():
-    from tool_decision_eval import suites
+    from capri import suites
     for n in suites.SHIPPED:
         assert suites.load(n, None)

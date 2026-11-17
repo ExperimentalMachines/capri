@@ -1,4 +1,4 @@
-# tool-decision-eval
+# capri
 
 Does your quantised or exported model still decide to call its tools when it should, and not
 when it shouldn't?
@@ -24,14 +24,14 @@ pip install -e ".[gguf]"        # add ,pte for ExecuTorch files
 ```
 
 ```bash
-tool-decision-eval --reference LiquidAI/LFM2.5-1.2B-Instruct --file LFM2.5-1.2B-Instruct-Q4_K_M.gguf --limit 40
+capri --reference LiquidAI/LFM2.5-1.2B-Instruct --file LFM2.5-1.2B-Instruct-Q4_K_M.gguf --limit 40
 ```
 
 `--reference` is the Hugging Face repo (or local directory) of the source model. Its chat
 template renders every prompt once, and each engine tokenises that same string, so the
 reference and the file see the same bytes; the report warns if their token counts differ.
-Repeat `--file` to compare several files in one report. Results go to `tde-out/report.md` and
-`tde-out/report.json`; each engine's rows are cached in `tde-out/<name>.jsonl`, keyed by prompt
+Repeat `--file` to compare several files in one report. Results go to `capri-out/report.md` and
+`capri-out/report.json`; each engine's rows are cached in `capri-out/<name>.jsonl`, keyed by prompt
 and settings, and reused, so adding a file or a suite does not rerun what is done.
 
 Suites: `--suite search` (the default), `openweights`, `bfcl_relevance`, `bfcl_irrelevance`,
@@ -105,10 +105,10 @@ engine carries from one conversation to the next), using the `ToolDecisionEval` 
 test on OpenWeights' `test/tool-decision-eval` branch:
 
 ```bash
-tool-decision-eval --reference LiquidAI/LFM3-1.7B --suite all --limit 40 --max-tokens 1024 --phone-export tde-phone
-scripts/phone.sh <adb-serial> engine-debug-androidTest.apk tde-phone LFM3-1.7B-Q4_K_M.gguf lfm3.pte
-tool-decision-eval --reference LiquidAI/LFM3-1.7B --file LFM3-1.7B-Q4_K_M.gguf --file lfm3.pte \
-  --phone tde-phone/results/LFM3-1.7B-Q4_K_M.gguf.jsonl --phone tde-phone/results/lfm3.pte.jsonl --suite all --limit 40 --max-tokens 1024
+capri --reference LiquidAI/LFM3-1.7B --suite all --limit 40 --max-tokens 1024 --phone-export capri-phone
+scripts/phone.sh <adb-serial> engine-debug-androidTest.apk capri-phone LFM3-1.7B-Q4_K_M.gguf lfm3.pte
+capri --reference LiquidAI/LFM3-1.7B --file LFM3-1.7B-Q4_K_M.gguf --file lfm3.pte \
+  --phone capri-phone/results/LFM3-1.7B-Q4_K_M.gguf.jsonl --phone capri-phone/results/lfm3.pte.jsonl --suite all --limit 40 --max-tokens 1024
 ```
 
 The report then has a column per engine: reference, file on the laptop, file on the phone. A
